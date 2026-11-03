@@ -50,7 +50,51 @@ function render(){
    const card=document.createElement("article");card.className="codecard";card.id="code-"+f.id;
    const lines=f.code.replace(/\n$/,"").split("\n");
    card.innerHTML=`<div class="cardhead"><span class="code-label">${esc(f.heading)}</span><span class="fname">${esc(f.filename)}</span><span class="tag">${f.language.toUpperCase()}</span><div class="card-actions"><button class="copy">Copy Code</button><button class="save">↓ Download</button></div></div><div class="codewrap"><div class="code">${lines.map((line,i)=>`<span class="ln">${i+1}</span><span class="src">${hi(line)||" "}</span>`).join("")}</div></div>`;
-   card.querySelector(".copy").onclick=async e=>{try{await navigator.clipboard.writeText(f.code);e.currentTarget.textContent="Copied";setTimeout(()=>e.currentTarget.textContent="Copy Code",1200)}catch(_){alert("Clipboard access was blocked. Select and copy the code manually.")}};
+   card.querySelector(".copy").onclick=async e=>{
+    const btn=e.currentTarget, original=btn.textContent;
+    let copied=false;
+    // Clipboard API works on secure origins; the textarea fallback also supports local file:// use.
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(f.code);
+        copied=true;
+      }
+    } catch (_) {}
+    if (!copied) {
+      const area=document.createElement("textarea");
+      area.value=f.code;
+      area.setAttribute("readonly","");
+      area.style.position="fixed";
+      area.style.left="-9999px";
+      area.style.top="0";
+      document.body.appendChild(area);
+      area.focus();
+      area.select();
+      area.setSelectionRange(0, area.value.length);
+      try { copied=document.execCommand("copy"); } catch (_) { copied=false; }
+      document.body.removeChild(area);
+    }
+    if (copied) {
+      btn.textContent="Copied!";
+      setTimeout(()=>btn.textContent=original,1400);
+    } else {
+      // Last-resort fallback: expose the exact code selected for Ctrl+C.
+      const area=document.createElement("textarea");
+      area.value=f.code;
+      area.style.position="fixed";
+      area.style.left="12px";
+      area.style.bottom="12px";
+      area.style.width="80%";
+      area.style.height="120px";
+      area.style.zIndex="9999";
+      document.body.appendChild(area);
+      area.focus();
+      area.select();
+      btn.textContent="Press Ctrl+C";
+      alert("Automatic copying was blocked by this browser. The code is selected in the text box; press Ctrl+C to copy it.");
+      setTimeout(()=>{ if(area.isConnected) area.remove(); btn.textContent=original; },10000);
+    }
+  };
    card.querySelector(".save").onclick=()=>download(f.filename,f.code);
    section.appendChild(card);
   });
